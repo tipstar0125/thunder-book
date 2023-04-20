@@ -292,5 +292,11 @@ fn testApiScore(game_number: usize) {
 
 #[tokio::main]
 async fn main() {
+    let start = Utc::now();
+    println!("start: {}", start);
     testApiScore(100);
+    let stop = Utc::now();
+    println!("stop: {}", stop);
+    let elapsed_time = stop.timestamp() - start.timestamp();
+    println!("Elapsed time: {}sec", elapsed_time);
 }
