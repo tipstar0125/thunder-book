@@ -15,9 +15,9 @@ use std::{
 };
 use tokio::time::{sleep, Duration};
 type ScoreType = isize;
-const H: usize = 3;
-const W: usize = 4;
-const END_TURN: usize = 4;
+const H: usize = 30;
+const W: usize = 30;
+const END_TURN: usize = 100;
 const INF: ScoreType = 1e9 as isize;
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ impl TimeKeeper {
         }
     }
     fn isTimeOver(&self) -> bool {
-        self.start_time_ + self.time_threshold_ * 1e6 as isize
+        self.start_time_ + self.time_threshold_ * 1e3 as isize
             <= Utc::now().timestamp_micros() as isize
     }
 }
@@ -226,14 +226,57 @@ fn beamSearchAction(state: &MazeState, beam_width: usize, beam_depth: usize) -> 
     best_state.first_action_ as usize
 }
 
+fn beamSearchActionWithTimeThreshold(
+    state: &MazeState,
+    beam_width: usize,
+    time_threshold: isize,
+) -> usize {
+    let mut now_beam = BinaryHeap::new();
+    let mut best_state = &MazeState::new(None); // initialize
+    now_beam.push(state.clone());
+    let time_keeper = TimeKeeper::new(time_threshold);
+
+    for t in 0.. {
+        let mut next_beam = BinaryHeap::new();
+        for _ in 0..beam_width {
+            if now_beam.is_empty() {
+                break;
+            }
+            let now_state = now_beam.pop().unwrap();
+            let legal_actions = now_state.legalActions();
+            for &action in &legal_actions {
+                let mut next_state = now_state.clone();
+                next_state.advance(action);
+                next_state.evaluateScore();
+                if t == 0 {
+                    next_state.first_action_ = action as isize;
+                }
+                next_beam.push(next_state);
+            }
+        }
+
+        now_beam = next_beam;
+        best_state = now_beam.peek().unwrap();
+        if best_state.isDone() {
+            break;
+        }
+        if time_keeper.isTimeOver() {
+            return best_state.first_action_ as usize;
+        }
+    }
+    best_state.first_action_ as usize
+}
+
 fn playGame(seed: Option<u64>) -> usize {
     let mut state = MazeState::new(seed);
-    state.toString();
+    // state.toString();
     while !state.isDone() {
         // state.advance(randomAction(&state));
         // state.advance(greedyAction(&state));
-        state.advance(beamSearchAction(&state, 2, END_TURN));
-        state.toString();
+        // state.advance(beamSearchAction(&state, 2, END_TURN));
+        // state.advance(beamSearchAction(&state, 5, 3));
+        state.advance(beamSearchActionWithTimeThreshold(&state, 5, 10));
+        // state.toString();
     }
     state.game_score_
 }
