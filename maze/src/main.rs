@@ -257,11 +257,8 @@ fn beamSearchActionWithTimeThreshold(
 
         now_beam = next_beam;
         best_state = now_beam.peek().unwrap();
-        if best_state.isDone() {
+        if best_state.isDone() || time_keeper.isTimeOver() {
             break;
-        }
-        if time_keeper.isTimeOver() {
-            return best_state.first_action_ as usize;
         }
     }
     best_state.first_action_ as usize
@@ -274,7 +271,9 @@ fn playGame(seed: Option<u64>) -> usize {
         // state.advance(randomAction(&state));
         // state.advance(greedyAction(&state));
         // state.advance(beamSearchAction(&state, 2, END_TURN));
+        // (state, beam_width, beam_depth)
         // state.advance(beamSearchAction(&state, 5, 3));
+        // (state, beam_width, time_threshold[ms])
         state.advance(beamSearchActionWithTimeThreshold(&state, 5, 10));
         // state.toString();
     }
