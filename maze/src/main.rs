@@ -8,14 +8,17 @@
 #![allow(clippy::neg_multiply)]
 #![allow(dead_code)]
 use rand::Rng;
-use std::cmp::{Ordering, PartialOrd};
+use std::{
+    cmp::{Ord, Ordering, PartialOrd},
+    collections::BinaryHeap,
+};
 type ScoreType = isize;
 const H: usize = 3;
 const W: usize = 4;
 const END_TURN: usize = 4;
 const INF: ScoreType = 1e9 as isize;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 struct Coord {
     x_: isize,
     y_: isize,
@@ -26,14 +29,14 @@ impl Coord {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq)]
 struct MazeState {
     points_: Vec<Vec<usize>>,
     turn_: usize,
     character_: Coord,
     game_score_: usize,
     evaluated_score_: ScoreType,
-    first_action: isize,
+    first_action_: isize,
 }
 
 impl MazeState {
@@ -64,7 +67,7 @@ impl MazeState {
             character_,
             game_score_: 0,
             evaluated_score_: 0,
-            first_action: -1,
+            first_action_: -1,
         }
     }
     fn isDone(&self) -> bool {
@@ -115,6 +118,12 @@ impl MazeState {
     }
 }
 
+impl PartialEq for MazeState {
+    fn eq(&self, other: &Self) -> bool {
+        self.evaluated_score_ == other.evaluated_score_
+    }
+}
+
 impl PartialOrd for MazeState {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.evaluated_score_ == other.evaluated_score_ {
@@ -125,6 +134,18 @@ impl PartialOrd for MazeState {
             Some(Ordering::Less)
         } else {
             None
+        }
+    }
+}
+
+impl Ord for MazeState {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.evaluated_score_ == other.evaluated_score_ {
+            Ordering::Equal
+        } else if self.evaluated_score_ > other.evaluated_score_ {
+            Ordering::Greater
+        } else {
+            Ordering::Less
         }
     }
 }
@@ -151,12 +172,46 @@ fn greedyAction(state: &MazeState) -> usize {
     best_action as usize
 }
 
+fn beamSearchAction(state: &MazeState, beam_width: usize, beam_depth: usize) -> usize {
+    let mut now_beam = BinaryHeap::new();
+    let mut best_state = &MazeState::new(None); // initialize
+    now_beam.push(state.clone());
+
+    for t in 0..beam_depth {
+        let mut next_beam = BinaryHeap::new();
+        for _ in 0..beam_width {
+            if now_beam.is_empty() {
+                break;
+            }
+            let now_state = now_beam.pop().unwrap();
+            let legal_actions = now_state.legalActions();
+            for &action in &legal_actions {
+                let mut next_state = now_state.clone();
+                next_state.advance(action);
+                next_state.evaluateScore();
+                if t == 0 {
+                    next_state.first_action_ = action as isize;
+                }
+                next_beam.push(next_state);
+            }
+        }
+
+        now_beam = next_beam;
+        best_state = now_beam.peek().unwrap();
+        if best_state.isDone() {
+            break;
+        }
+    }
+    best_state.first_action_ as usize
+}
+
 fn playGame(seed: Option<u64>) -> usize {
     let mut state = MazeState::new(seed);
     state.toString();
     while !state.isDone() {
         // state.advance(randomAction(&state));
-        state.advance(greedyAction(&state));
+        // state.advance(greedyAction(&state));
+        state.advance(beamSearchAction(&state, 2, END_TURN));
         state.toString();
     }
     state.game_score_
