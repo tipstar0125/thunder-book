@@ -7,16 +7,37 @@
 #![allow(clippy::nonminimal_bool)]
 #![allow(clippy::neg_multiply)]
 #![allow(dead_code)]
+use chrono::Utc;
 use rand::Rng;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::BinaryHeap,
 };
+use tokio::time::{sleep, Duration};
 type ScoreType = isize;
 const H: usize = 3;
 const W: usize = 4;
 const END_TURN: usize = 4;
 const INF: ScoreType = 1e9 as isize;
+
+#[derive(Debug, Clone)]
+struct TimeKeeper {
+    start_time_: isize,
+    time_threshold_: isize,
+}
+
+impl TimeKeeper {
+    fn new(time_threshold_: isize) -> Self {
+        TimeKeeper {
+            start_time_: Utc::now().timestamp_micros() as isize,
+            time_threshold_,
+        }
+    }
+    fn isTimeOver(&self) -> bool {
+        self.start_time_ + self.time_threshold_ * 1e6 as isize
+            <= Utc::now().timestamp_micros() as isize
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Coord {
@@ -227,6 +248,7 @@ fn testApiScore(game_number: usize) {
     println!("Score: {:.2}", score_mean);
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     testApiScore(100);
 }
