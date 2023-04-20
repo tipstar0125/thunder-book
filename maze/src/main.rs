@@ -8,13 +8,14 @@
 #![allow(clippy::neg_multiply)]
 #![allow(dead_code)]
 use rand::Rng;
+use std::cmp::{Ordering, PartialOrd};
 type ScoreType = isize;
 const H: usize = 3;
 const W: usize = 4;
 const END_TURN: usize = 4;
 const INF: ScoreType = 1e9 as isize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Coord {
     x_: isize,
     y_: isize,
@@ -25,13 +26,14 @@ impl Coord {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct MazeState {
     points_: Vec<Vec<usize>>,
     turn_: usize,
     character_: Coord,
     game_score_: usize,
     evaluated_score_: ScoreType,
+    first_action: isize,
 }
 
 impl MazeState {
@@ -62,6 +64,7 @@ impl MazeState {
             character_,
             game_score_: 0,
             evaluated_score_: 0,
+            first_action: -1,
         }
     }
     fn isDone(&self) -> bool {
@@ -109,6 +112,20 @@ impl MazeState {
     }
     fn evaluateScore(&mut self) {
         self.evaluated_score_ = self.game_score_ as isize;
+    }
+}
+
+impl PartialOrd for MazeState {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.evaluated_score_ == other.evaluated_score_ {
+            Some(Ordering::Equal)
+        } else if self.evaluated_score_ > other.evaluated_score_ {
+            Some(Ordering::Greater)
+        } else if self.evaluated_score_ < other.evaluated_score_ {
+            Some(Ordering::Less)
+        } else {
+            None
+        }
     }
 }
 
