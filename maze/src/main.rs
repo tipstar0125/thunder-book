@@ -367,7 +367,7 @@ fn playGame(seed: Option<u64>) -> usize {
         // (state, beam_width, beam_depth, beam_number)
         // state.advance(chokudaiSearchAction(&state, 1, 3, 1) as usize);
         // (state, beam_width, beam_depth, time_threshold[ms])
-        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 5, END_TURN, 10) as usize);
+        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 10) as usize);
         // state.toString();
     }
     state.game_score_
