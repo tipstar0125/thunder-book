@@ -264,17 +264,110 @@ fn beamSearchActionWithTimeThreshold(
     best_state.first_action_ as usize
 }
 
+fn chokudaiSearchAction(
+    state: &MazeState,
+    beam_width: usize,
+    beam_depth: usize,
+    beam_number: usize,
+) -> isize {
+    let mut beam = vec![BinaryHeap::new(); beam_depth + 1];
+    beam[0].push(state.clone());
+
+    for _ in 0..beam_number {
+        for t in 0..beam_depth {
+            for _ in 0..beam_width {
+                if beam[t].is_empty() {
+                    break;
+                }
+                let now_state = beam[t].peek().unwrap().clone();
+                if now_state.isDone() {
+                    break;
+                }
+                beam[t].pop();
+
+                let legal_actions = now_state.legalActions();
+                for &action in &legal_actions {
+                    let mut next_state = now_state.clone();
+                    next_state.advance(action);
+                    next_state.evaluateScore();
+                    if t == 0 {
+                        next_state.first_action_ = action as isize;
+                    }
+                    beam[t + 1].push(next_state);
+                }
+            }
+        }
+    }
+    for t in (0..=beam_depth).rev() {
+        let now_beam = &beam[t];
+        if !now_beam.is_empty() {
+            return now_beam.peek().unwrap().first_action_;
+        }
+    }
+    -1
+}
+
+fn chokudaiSearchActionWithTimeThreshold(
+    state: &MazeState,
+    beam_width: usize,
+    beam_depth: usize,
+    time_threshold: isize,
+) -> isize {
+    let mut beam = vec![BinaryHeap::new(); beam_depth + 1];
+    beam[0].push(state.clone());
+    let time_keeper = TimeKeeper::new(time_threshold);
+
+    loop {
+        for t in 0..beam_depth {
+            for _ in 0..beam_width {
+                if beam[t].is_empty() {
+                    break;
+                }
+                let now_state = beam[t].peek().unwrap().clone();
+                if now_state.isDone() {
+                    break;
+                }
+                beam[t].pop();
+
+                let legal_actions = now_state.legalActions();
+                for &action in &legal_actions {
+                    let mut next_state = now_state.clone();
+                    next_state.advance(action);
+                    next_state.evaluateScore();
+                    if t == 0 {
+                        next_state.first_action_ = action as isize;
+                    }
+                    beam[t + 1].push(next_state);
+                }
+            }
+        }
+        if time_keeper.isTimeOver() {
+            break;
+        }
+    }
+    for t in (0..=beam_depth).rev() {
+        let now_beam = &beam[t];
+        if !now_beam.is_empty() {
+            return now_beam.peek().unwrap().first_action_;
+        }
+    }
+    -1
+}
+
 fn playGame(seed: Option<u64>) -> usize {
     let mut state = MazeState::new(seed);
     // state.toString();
     while !state.isDone() {
         // state.advance(randomAction(&state));
         // state.advance(greedyAction(&state));
-        // state.advance(beamSearchAction(&state, 2, END_TURN));
         // (state, beam_width, beam_depth)
         // state.advance(beamSearchAction(&state, 5, 3));
         // (state, beam_width, time_threshold[ms])
-        state.advance(beamSearchActionWithTimeThreshold(&state, 5, 10));
+        // state.advance(beamSearchActionWithTimeThreshold(&state, 5, 10));
+        // (state, beam_width, beam_depth, beam_number)
+        // state.advance(chokudaiSearchAction(&state, 1, 3, 1) as usize);
+        // (state, beam_width, beam_depth, time_threshold[ms])
+        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 5, END_TURN, 10) as usize);
         // state.toString();
     }
     state.game_score_
