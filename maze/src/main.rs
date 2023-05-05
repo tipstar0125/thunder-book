@@ -13,7 +13,6 @@ use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::BinaryHeap,
 };
-use tokio::time::{sleep, Duration};
 type ScoreType = isize;
 const H: usize = 30;
 const W: usize = 30;
@@ -22,19 +21,28 @@ const INF: ScoreType = 1e9 as isize;
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
-    start_time_: Instant,
-    time_threshold_: usize,
+    start_time: Instant,
+    time_threshold: f64, // us
 }
 
 impl TimeKeeper {
-    fn new(time_threshold_: usize) -> Self {
+    fn new(ms: usize) -> Self {
         TimeKeeper {
-            start_time_: Instant::now(),
-            time_threshold_,
+            start_time: Instant::now(),
+            time_threshold: (ms * 1e3 as usize) as f64,
         }
     }
+    #[inline]
     fn isTimeOver(&self) -> bool {
-        self.start_time_.elapsed().as_micros() >= (self.time_threshold_ * 1e3 as usize) as u128
+        let elapsed_time = self.start_time.elapsed().as_micros() as f64;
+        #[cfg(feature = "local")]
+        {
+            elapsed_time * 0.5 >= self.time_threshold
+        }
+        #[cfg(not(feature = "local"))]
+        {
+            elapsed_time >= self.time_threshold
+        }
     }
 }
 
@@ -62,11 +70,15 @@ struct MazeState {
 impl MazeState {
     const dx: [isize; 4] = [1, -1, 0, 0];
     const dy: [isize; 4] = [0, 0, 1, -1];
-    fn new(seed: Option<u64>) -> Self {
+    fn new() -> Self {
+        #[allow(unused_assignments)]
         let mut rng: rand::rngs::StdRng =
             rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
-        if let Some(s) = seed {
-            rng = rand::SeedableRng::seed_from_u64(s)
+        #[cfg(feature = "seed")]
+        {
+            let seed = 12;
+            eprintln!("seed: {}", seed);
+            rng = rand::SeedableRng::seed_from_u64(seed);
         }
 
         let mut character_ = Coord::new();
@@ -194,7 +206,7 @@ fn greedyAction(state: &MazeState) -> usize {
 
 fn beamSearchAction(state: &MazeState, beam_width: usize, beam_depth: usize) -> usize {
     let mut now_beam = BinaryHeap::new();
-    let mut best_state = &MazeState::new(None); // initialize
+    let mut best_state = &MazeState::new(); // initialize
     now_beam.push(state.clone());
 
     for t in 0..beam_depth {
@@ -231,7 +243,7 @@ fn beamSearchActionWithTimeThreshold(
     time_threshold: usize,
 ) -> usize {
     let mut now_beam = BinaryHeap::new();
-    let mut best_state = &MazeState::new(None); // initialize
+    let mut best_state = &MazeState::new(); // initialize
     now_beam.push(state.clone());
     let time_keeper = TimeKeeper::new(time_threshold);
 
@@ -353,8 +365,8 @@ fn chokudaiSearchActionWithTimeThreshold(
     -1
 }
 
-fn playGame(seed: Option<u64>) -> usize {
-    let mut state = MazeState::new(seed);
+fn playGame() -> usize {
+    let mut state = MazeState::new();
     // state.toString();
     while !state.isDone() {
         // state.advance(randomAction(&state));
@@ -366,7 +378,7 @@ fn playGame(seed: Option<u64>) -> usize {
         // (state, beam_width, beam_depth, beam_number)
         // state.advance(chokudaiSearchAction(&state, 1, 3, 1) as usize);
         // (state, beam_width, beam_depth, time_threshold[ms])
-        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 10) as usize);
+        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 1) as usize);
         // state.toString();
     }
     state.game_score_
@@ -375,15 +387,13 @@ fn playGame(seed: Option<u64>) -> usize {
 fn testApiScore(game_number: usize) {
     let mut score_mean = 0.0;
     for _ in 0..game_number {
-        score_mean += playGame(None) as f64;
-        // score_mean += playGame(Some(12)) as f64;
+        score_mean += playGame() as f64;
     }
     score_mean /= game_number as f64;
     println!("Score: {:.2}", score_mean);
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let start = Instant::now();
     testApiScore(100);
     println!("Elapsed time: {}sec", start.elapsed().as_secs());
