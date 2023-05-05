@@ -59,7 +59,7 @@ impl Coord {
 
 #[derive(Debug, Clone, Eq)]
 struct MazeState {
-    points_: Vec<Vec<usize>>,
+    points_: [[usize; W]; H],
     turn_: usize,
     character_: Coord,
     game_score_: usize,
@@ -84,7 +84,7 @@ impl MazeState {
         let mut character_ = Coord::new();
         character_.x_ = rng.gen_range(0, W) as isize;
         character_.y_ = rng.gen_range(0, H) as isize;
-        let mut points_ = vec![vec![0; W]; H];
+        let mut points_ = [[0; W]; H];
         for y in 0..H {
             for x in 0..W {
                 if x as isize == character_.x_ && y as isize == character_.y_ {
@@ -378,7 +378,7 @@ fn playGame() -> usize {
         // (state, beam_width, beam_depth, beam_number)
         // state.advance(chokudaiSearchAction(&state, 1, 3, 1) as usize);
         // (state, beam_width, beam_depth, time_threshold[ms])
-        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 1) as usize);
+        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 10) as usize);
         // state.toString();
     }
     state.game_score_
