@@ -18,6 +18,8 @@ const H: usize = 30;
 const W: usize = 30;
 const END_TURN: usize = 100;
 const INF: ScoreType = 1e9 as isize;
+const dx: [isize; 4] = [1, -1, 0, 0];
+const dy: [isize; 4] = [0, 0, 1, -1];
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
@@ -68,8 +70,6 @@ struct MazeState {
 }
 
 impl MazeState {
-    const dx: [isize; 4] = [1, -1, 0, 0];
-    const dy: [isize; 4] = [0, 0, 1, -1];
     fn new() -> Self {
         #[allow(unused_assignments)]
         let mut rng: rand::rngs::StdRng =
@@ -106,8 +106,8 @@ impl MazeState {
         self.turn_ == END_TURN
     }
     fn advance(&mut self, action: usize) {
-        self.character_.x_ += Self::dx[action];
-        self.character_.y_ += Self::dy[action];
+        self.character_.x_ += dx[action];
+        self.character_.y_ += dy[action];
         let point = &mut self.points_[self.character_.y_ as usize][self.character_.x_ as usize]
             as *mut usize;
         unsafe {
@@ -121,8 +121,8 @@ impl MazeState {
     fn legalActions(&self) -> Vec<usize> {
         let mut actions = vec![];
         for action in 0..4 {
-            let ty = self.character_.y_ + Self::dy[action];
-            let tx = self.character_.x_ + Self::dx[action];
+            let ty = self.character_.y_ + dy[action];
+            let tx = self.character_.x_ + dx[action];
             if 0 <= ty && ty < H as isize && 0 <= tx && tx < W as isize {
                 actions.push(action);
             }

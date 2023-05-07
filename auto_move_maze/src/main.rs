@@ -20,6 +20,8 @@ const W: usize = 5;
 const END_TURN: usize = 5;
 const CHARACTER_N: usize = 3;
 const INF: ScoreType = 1e9 as isize;
+const dx: [isize; 4] = [1, -1, 0, 0];
+const dy: [isize; 4] = [0, 0, 1, -1];
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
@@ -59,7 +61,7 @@ impl Coord {
     }
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 struct AutoMoveMazeState {
     points_: [[usize; W]; H],
     turn_: usize,
@@ -69,8 +71,6 @@ struct AutoMoveMazeState {
 }
 
 impl AutoMoveMazeState {
-    const dx: [isize; 4] = [1, -1, 0, 0];
-    const dy: [isize; 4] = [0, 0, 1, -1];
     fn new() -> Self {
         #[allow(unused_assignments)]
         let mut rng: rand::rngs::StdRng =
@@ -104,7 +104,53 @@ impl AutoMoveMazeState {
     fn isDone(&self) -> bool {
         self.turn_ == END_TURN
     }
-    fn advance(&mut self, action: usize) {}
+    fn movePlayer(&mut self, character_id: usize) {
+        let character = self.characters_[character_id];
+        let mut best_point = -INF;
+        let mut best_action_index = 0;
+        for action in 0..4 {
+            let ty = character.y_ + dy[action];
+            let tx = character.x_ + dx[action];
+            if ty >= 0 && ty < H as isize && tx >= 0 && tx < W as isize {
+                let point = self.points_[ty as usize][tx as usize] as isize;
+                if point > best_point {
+                    best_point = point;
+                    best_action_index = action;
+                }
+            }
+        }
+
+        self.characters_[character_id].y_ += dy[best_action_index];
+        self.characters_[character_id].x_ += dx[best_action_index];
+    }
+    fn advance(&mut self) {
+        for character_id in 0..CHARACTER_N {
+            self.movePlayer(character_id);
+        }
+        for character in self.characters_ {
+            let point = self.points_[character.y_ as usize][character.x_ as usize];
+            self.game_score_ += point;
+            self.points_[character.y_ as usize][character.x_ as usize] = 0;
+        }
+        self.turn_ += 1;
+    }
+    fn getScore(&self, is_print: bool) -> usize {
+        let mut tmp_state = self.clone();
+        for character in self.characters_ {
+            tmp_state.points_[character.y_ as usize][character.x_ as usize] = 0;
+        }
+        if is_print {
+            tmp_state.toString();
+        }
+
+        while !tmp_state.isDone() {
+            tmp_state.advance();
+            if is_print {
+                tmp_state.toString();
+            }
+        }
+        tmp_state.game_score_
+    }
     fn toString(&self) {
         println!("turn: {}", self.turn_);
         println!("score: {}", self.game_score_);
@@ -132,64 +178,29 @@ impl AutoMoveMazeState {
             println!();
         }
     }
-    fn getScore(&mut self) {}
 }
 
-impl PartialEq for AutoMoveMazeState {
-    fn eq(&self, other: &Self) -> bool {
-        self.evaluated_score_ == other.evaluated_score_
+fn randomAction(state: &AutoMoveMazeState) -> AutoMoveMazeState {
+    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
+    let mut now_state = state.clone();
+    for character_id in 0..CHARACTER_N {
+        let y = rng.gen_range(0, H) as isize;
+        let x = rng.gen_range(0, W) as isize;
+        now_state.setCharacter(character_id, y, x);
     }
+    now_state
 }
 
-impl PartialOrd for AutoMoveMazeState {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        if self.evaluated_score_ == other.evaluated_score_ {
-            Some(Ordering::Equal)
-        } else if self.evaluated_score_ > other.evaluated_score_ {
-            Some(Ordering::Greater)
-        } else if self.evaluated_score_ < other.evaluated_score_ {
-            Some(Ordering::Less)
-        } else {
-            None
-        }
-    }
-}
-
-impl Ord for AutoMoveMazeState {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.evaluated_score_ == other.evaluated_score_ {
-            Ordering::Equal
-        } else if self.evaluated_score_ > other.evaluated_score_ {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-}
-
-fn randomAction(state: &AutoMoveMazeState) -> usize {
-    // let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
-    1
-}
-
-fn playGame() -> usize {
-    let mut state = AutoMoveMazeState::new();
-    state.toString();
-    // while !state.isDone() {}
-    state.game_score_
-}
-
-fn testApiScore(game_number: usize) {
-    let mut score_mean = 0.0;
-    for _ in 0..game_number {
-        score_mean += playGame() as f64;
-    }
-    score_mean /= game_number as f64;
-    println!("Score: {:.2}", score_mean);
+fn playGame(ai: (&str, AutoMoveMazeState)) {
+    let state = ai.1;
+    let score = state.getScore(true);
+    println!("Score of {}: {}", ai.0, score);
 }
 
 fn main() {
     let start = Instant::now();
-    testApiScore(1);
+    let state = AutoMoveMazeState::new();
+    let ai = ("randomAction", randomAction(&state));
+    playGame(ai);
     println!("Elapsed time: {}sec", start.elapsed().as_secs());
 }
