@@ -8,6 +8,7 @@
 #![allow(clippy::neg_multiply)]
 #![allow(dead_code)]
 use itertools::Itertools;
+use rand::rngs::StdRng;
 use rand::Rng;
 use std::time::Instant;
 use std::{
@@ -71,16 +72,16 @@ struct AutoMoveMazeState {
 }
 
 impl AutoMoveMazeState {
-    fn new() -> Self {
-        #[allow(unused_assignments)]
-        let mut rng: rand::rngs::StdRng =
-            rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
-        #[cfg(feature = "seed")]
-        {
-            let seed = 12;
-            eprintln!("seed: {}", seed);
-            rng = rand::SeedableRng::seed_from_u64(seed);
-        }
+    fn new(rng: &mut StdRng) -> Self {
+        // #[allow(unused_assignments)]
+        // let mut rng: rand::rngs::StdRng =
+        //     rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
+        // #[cfg(feature = "seed")]
+        // {
+        //     let seed = 12;
+        //     eprintln!("seed: {}", seed);
+        //     rng = rand::SeedableRng::seed_from_u64(seed);
+        // }
 
         let mut points_ = [[0; W]; H];
         for y in 0..H {
@@ -103,6 +104,17 @@ impl AutoMoveMazeState {
     }
     fn isDone(&self) -> bool {
         self.turn_ == END_TURN
+    }
+    fn init(&mut self, rng: &mut StdRng) {
+        for character in self.characters_.iter_mut() {
+            character.y_ = rng.gen_range(0, H) as isize;
+            character.x_ = rng.gen_range(0, W) as isize;
+        }
+    }
+    fn transition(&mut self, rng: &mut StdRng) {
+        let character_id = rng.gen_range(0, CHARACTER_N);
+        self.characters_[character_id].y_ = rng.gen_range(0, H) as isize;
+        self.characters_[character_id].x_ = rng.gen_range(0, W) as isize;
     }
     fn movePlayer(&mut self, character_id: usize) {
         let character = self.characters_[character_id];
@@ -180,8 +192,7 @@ impl AutoMoveMazeState {
     }
 }
 
-fn randomAction(state: &AutoMoveMazeState) -> AutoMoveMazeState {
-    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(0);
+fn randomAction(state: &AutoMoveMazeState, rng: &mut StdRng) -> AutoMoveMazeState {
     let mut now_state = state.clone();
     for character_id in 0..CHARACTER_N {
         let y = rng.gen_range(0, H) as isize;
@@ -191,16 +202,42 @@ fn randomAction(state: &AutoMoveMazeState) -> AutoMoveMazeState {
     now_state
 }
 
+fn hillClimb(state: &AutoMoveMazeState, number: usize, rng: &mut StdRng) -> AutoMoveMazeState {
+    let mut now_state = state.clone();
+    now_state.init(rng);
+    let mut best_score = now_state.getScore(false);
+    for _ in 0..number {
+        let mut next_state = now_state.clone();
+        next_state.transition(rng);
+        let next_score = next_state.getScore(false);
+        if next_score > best_score {
+            best_score = next_score;
+            now_state = next_state;
+        }
+    }
+    now_state
+}
+
 fn playGame(ai: (&str, AutoMoveMazeState)) {
     let state = ai.1;
-    let score = state.getScore(true);
+    let score = state.getScore(false);
     println!("Score of {}: {}", ai.0, score);
 }
 
 fn main() {
+    #[allow(unused_mut)]
+    let mut seed = rand::thread_rng().gen();
+    #[cfg(feature = "seed")]
+    {
+        seed = 11216848234635351618;
+    }
+    println!("seed: {}", seed);
+    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
+
     let start = Instant::now();
-    let state = AutoMoveMazeState::new();
-    let ai = ("randomAction", randomAction(&state));
+    let state = AutoMoveMazeState::new(&mut rng);
+    // let ai = ("randomAction", randomAction(&state, &mut rng));
+    let ai = ("hillClimb", hillClimb(&state, 10000, &mut rng));
     playGame(ai);
     println!("Elapsed time: {}sec", start.elapsed().as_secs());
 }
