@@ -8,11 +8,9 @@
 #![allow(clippy::neg_multiply)]
 #![allow(dead_code)]
 use rand::Rng;
+use std::collections::BinaryHeap;
 use std::time::Instant;
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    collections::BinaryHeap,
-};
+
 type ScoreType = isize;
 const H: usize = 30;
 const W: usize = 30;
@@ -150,20 +148,20 @@ impl MazeState {
     }
 }
 
-impl PartialEq for MazeState {
+impl std::cmp::PartialEq for MazeState {
     fn eq(&self, other: &Self) -> bool {
         self.evaluated_score_ == other.evaluated_score_
     }
 }
 
 impl PartialOrd for MazeState {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self.evaluated_score_ == other.evaluated_score_ {
-            Some(Ordering::Equal)
+            Some(std::cmp::Ordering::Equal)
         } else if self.evaluated_score_ > other.evaluated_score_ {
-            Some(Ordering::Greater)
+            Some(std::cmp::Ordering::Greater)
         } else if self.evaluated_score_ < other.evaluated_score_ {
-            Some(Ordering::Less)
+            Some(std::cmp::Ordering::Less)
         } else {
             None
         }
@@ -171,13 +169,13 @@ impl PartialOrd for MazeState {
 }
 
 impl Ord for MazeState {
-    fn cmp(&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.evaluated_score_ == other.evaluated_score_ {
-            Ordering::Equal
+            std::cmp::Ordering::Equal
         } else if self.evaluated_score_ > other.evaluated_score_ {
-            Ordering::Greater
+            std::cmp::Ordering::Greater
         } else {
-            Ordering::Less
+            std::cmp::Ordering::Less
         }
     }
 }

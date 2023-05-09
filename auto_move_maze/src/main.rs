@@ -10,13 +10,9 @@
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::Rng;
-use std::ops::Add;
+use std::collections::BinaryHeap;
 use std::time::Instant;
-use std::vec;
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    collections::BinaryHeap,
-};
+
 type ScoreType = isize;
 const H: usize = 5;
 const W: usize = 5;
