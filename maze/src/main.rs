@@ -39,7 +39,7 @@ impl TimeKeeper {
         let elapsed_time = self.start_time.elapsed().as_micros() as f64;
         #[cfg(feature = "local")]
         {
-            elapsed_time * 0.5 >= self.time_threshold
+            elapsed_time * 0.85 >= self.time_threshold
         }
         #[cfg(not(feature = "local"))]
         {
