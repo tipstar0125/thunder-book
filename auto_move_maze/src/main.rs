@@ -10,7 +10,9 @@
 use itertools::Itertools;
 use rand::rngs::StdRng;
 use rand::Rng;
+use std::ops::Add;
 use std::time::Instant;
+use std::vec;
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::BinaryHeap,
@@ -73,16 +75,6 @@ struct AutoMoveMazeState {
 
 impl AutoMoveMazeState {
     fn new(rng: &mut StdRng) -> Self {
-        // #[allow(unused_assignments)]
-        // let mut rng: rand::rngs::StdRng =
-        //     rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
-        // #[cfg(feature = "seed")]
-        // {
-        //     let seed = 12;
-        //     eprintln!("seed: {}", seed);
-        //     rng = rand::SeedableRng::seed_from_u64(seed);
-        // }
-
         let mut points_ = [[0; W]; H];
         for y in 0..H {
             for x in 0..W {
@@ -206,6 +198,7 @@ fn hillClimb(state: &AutoMoveMazeState, number: usize, rng: &mut StdRng) -> Auto
     let mut now_state = state.clone();
     now_state.init(rng);
     let mut best_score = now_state.getScore(false);
+
     for _ in 0..number {
         let mut next_state = now_state.clone();
         next_state.transition(rng);
@@ -218,26 +211,146 @@ fn hillClimb(state: &AutoMoveMazeState, number: usize, rng: &mut StdRng) -> Auto
     now_state
 }
 
-fn playGame(ai: (&str, AutoMoveMazeState)) {
-    let state = ai.1;
-    let score = state.getScore(false);
-    println!("Score of {}: {}", ai.0, score);
+fn simulatedAnnealing(
+    state: &AutoMoveMazeState,
+    number: usize,
+    start_temp: f64,
+    end_temp: f64,
+    rng: &mut StdRng,
+) -> AutoMoveMazeState {
+    let mut now_state = state.clone();
+    now_state.init(rng);
+    let mut best_score = now_state.getScore(false);
+    let mut now_score = best_score;
+    let mut best_state = now_state.clone();
+
+    for i in 0..number {
+        let mut next_state = now_state.clone();
+        next_state.transition(rng);
+        let next_score = next_state.getScore(false);
+
+        let temp = start_temp + (end_temp - start_temp) * (i as f64 / number as f64);
+        // next_score >= now_score => next_score - now_score >= 0 => good
+        let probability = ((next_score as f64 - now_score as f64) / temp).exp();
+        // 0 <= rng.gen::<f64>() <= 1
+        if rng.gen::<f64>() < probability {
+            now_score = next_score;
+            now_state = next_state.clone();
+        }
+        if next_score > best_score {
+            best_score = next_score;
+            best_state = next_state;
+        }
+    }
+    best_state
 }
 
-fn main() {
-    #[allow(unused_mut)]
+fn playGame(ai: &mut (&str, impl FnMut(&AutoMoveMazeState) -> AutoMoveMazeState)) {
+    #[allow(unused_mut, unused_assignments)]
     let mut seed = rand::thread_rng().gen();
     #[cfg(feature = "seed")]
     {
         seed = 11216848234635351618;
     }
-    println!("seed: {}", seed);
-    let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
+    println!("constructor seed: {}", seed);
+    let mut rng_constructor: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
+
+    let mut state = AutoMoveMazeState::new(&mut rng_constructor);
+    state = ai.1(&state);
+    let score = state.getScore(false);
+    println!("Score of {}: {}", ai.0, score);
+}
+
+fn testAiScore(
+    ai: &mut (&str, impl FnMut(&AutoMoveMazeState) -> AutoMoveMazeState),
+    game_number: usize,
+    seed: usize,
+) {
+    println!("constructor seed: {}", seed);
+    let mut rng_constructor: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed as u64);
+    let mut score_mean = 0.0;
+
+    for _ in 0..game_number {
+        let mut state = AutoMoveMazeState::new(&mut rng_constructor);
+        state = ai.1(&state);
+        score_mean += state.getScore(false) as f64;
+    }
+    score_mean /= game_number as f64;
+    println!("Score of {}: {}", ai.0, score_mean);
+}
+
+fn single_play(simulate_number: usize, rng_action: &mut StdRng) {
+    let start = Instant::now();
+    // let mut ai = (
+    //     "randomAction",
+    //     |state: &AutoMoveMazeState| -> AutoMoveMazeState { randomAction(state, rng_action) },
+    // );
+    // let mut ai = (
+    //     "hillClimb",
+    //     |state: &AutoMoveMazeState| -> AutoMoveMazeState {
+    //         hillClimb(state, simulate_number, rng_action)
+    //     }
+    // );
+    let mut ai = (
+        "simulatedAnnealing",
+        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
+            simulatedAnnealing(state, simulate_number, 500.0, 10.0, rng_action)
+        },
+    );
+    playGame(&mut ai);
+    println!(
+        "Elapsed time: {}sec",
+        start.elapsed().as_millis() as f64 / 1000.0
+    );
+}
+
+fn repeat_play(simulate_number: usize, rng_action: &mut StdRng) {
+    #[allow(unused_mut, unused_assignments)]
+    let mut seed = rand::thread_rng().gen();
+    #[cfg(feature = "seed")]
+    {
+        seed = 11216848234635351618;
+    }
+
+    let game_number = 1000;
+    let start = Instant::now();
+    let mut ai = (
+        "hillClimb",
+        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
+            hillClimb(state, simulate_number, rng_action)
+        },
+    );
+    testAiScore(&mut ai, game_number, seed);
+    println!(
+        "Elapsed time: {}sec",
+        start.elapsed().as_millis() as f64 / 1000.0
+    );
 
     let start = Instant::now();
-    let state = AutoMoveMazeState::new(&mut rng);
-    // let ai = ("randomAction", randomAction(&state, &mut rng));
-    let ai = ("hillClimb", hillClimb(&state, 10000, &mut rng));
-    playGame(ai);
-    println!("Elapsed time: {}sec", start.elapsed().as_secs());
+    let mut ai = (
+        "simulatedAnnealing",
+        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
+            simulatedAnnealing(state, simulate_number, 500.0, 10.0, rng_action)
+        },
+    );
+    testAiScore(&mut ai, game_number, seed);
+    println!(
+        "Elapsed time: {}sec",
+        start.elapsed().as_millis() as f64 / 1000.0
+    );
+}
+
+fn main() {
+    #[allow(unused_mut, unused_assignments)]
+    let mut seed = rand::thread_rng().gen();
+    #[cfg(feature = "seed")]
+    {
+        seed = 11216848234635351618;
+    }
+    println!("action seed: {}", seed);
+    let mut rng_action: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
+    let simulate_number = 10000;
+
+    // single_play(simulate_number, &mut rng_action);
+    repeat_play(simulate_number, &mut rng_action);
 }
