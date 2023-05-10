@@ -180,7 +180,7 @@ impl AutoMoveMazeState {
     }
 }
 
-fn randomAction(state: &AutoMoveMazeState, _number: usize, rng: &mut StdRng) -> AutoMoveMazeState {
+fn randomAction(state: &AutoMoveMazeState, rng: &mut StdRng) -> AutoMoveMazeState {
     let mut now_state = state.clone();
     for character_id in 0..CHARACTER_N {
         let y = rng.gen_range(0, H) as isize;
@@ -283,22 +283,45 @@ fn testAiScore(
 fn single_play(simulate_number: usize, rng_action: &mut StdRng) {
     let start = Instant::now();
 
-    let name = "randomAction";
-    let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-        randomAction(state, simulate_number, rng)
-    };
+    playGame(
+        &mut (
+            "randomAction",
+            Box::new(
+                |state: &AutoMoveMazeState, _simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    randomAction(state, rng)
+                },
+            ),
+        ),
+        simulate_number,
+        rng_action,
+    );
 
-    // let name = "hillClimb";
-    // let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-    //     hillClimb(state, simulate_number, rng)
-    // };
+    playGame(
+        &mut (
+            "hillClimb",
+            Box::new(
+                |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    hillClimb(state, simulate_number, rng)
+                },
+            ),
+        ),
+        simulate_number,
+        rng_action,
+    );
 
-    // let name = "simulatedAnnealing";
-    // let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-    //     simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
-    // };
+    playGame(
+        &mut (
+            "simulatedAnnealing",
+            Box::new(
+                |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
+                },
+            ),
+        ),
+        simulate_number,
+        rng_action,
+    );
 
-    playGame(&mut (name, Box::new(f)), simulate_number, rng_action);
     println!(
         "Elapsed time: {}sec",
         start.elapsed().as_millis() as f64 / 1000.0
@@ -314,22 +337,31 @@ fn repeat_play(simulate_number: usize, rng_action: &mut StdRng) {
     }
 
     let game_number = 1000;
-
-    let f_randomAction = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-        randomAction(state, simulate_number, rng)
-    };
-    let f_hillClimb = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-        hillClimb(state, simulate_number, rng)
-    };
-    let f_simulatedAnnealing =
-        |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
-            simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
-        };
-
     let mut ais: Vec<(&str, Handler)> = vec![
-        ("randomAction", Box::new(f_randomAction)),
-        ("hillClimb", Box::new(f_hillClimb)),
-        ("simulatedAnnealing", Box::new(f_simulatedAnnealing)),
+        (
+            "randomAction",
+            Box::new(
+                |state: &AutoMoveMazeState, _simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    randomAction(state, rng)
+                },
+            ),
+        ),
+        (
+            "hillClimb",
+            Box::new(
+                |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    hillClimb(state, simulate_number, rng)
+                },
+            ),
+        ),
+        (
+            "simulatedAnnealing",
+            Box::new(
+                |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+                    simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
+                },
+            ),
+        ),
     ];
 
     for ai in ais.iter_mut() {
