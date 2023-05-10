@@ -82,6 +82,7 @@ mod rnd_constructor {
     pub fn gen_bool() -> bool {
         gen() & 1 == 1
     }
+    #[inline]
     pub fn gen_float() -> f64 {
         ((gen() % MAX) as f64) / MAX as f64
     }
@@ -121,6 +122,7 @@ mod rnd_action {
     pub fn gen_bool() -> bool {
         gen() & 1 == 1
     }
+    #[inline]
     pub fn gen_float() -> f64 {
         ((gen() % MAX) as f64) / MAX as f64
     }
