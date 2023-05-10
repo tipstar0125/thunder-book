@@ -423,17 +423,14 @@ fn repeat_play(seed_constructor: usize, simulate_number: usize) {
 fn main() {
     #[allow(unused_mut, unused_assignments)]
     let mut seed_constructor: usize = rand::thread_rng().gen();
-    #[cfg(feature = "seed")]
-    {
-        seed_constructor = 11216848234635351618;
-    }
-
     #[allow(unused_mut, unused_assignments)]
     let mut seed_action: usize = rand::thread_rng().gen();
     #[cfg(feature = "seed")]
     {
+        seed_constructor = 11216848234635351618;
         seed_action = 11216848234635351618;
     }
+
     println!("seed action: {}", seed_action);
     rnd_action::init(seed_action);
 
