@@ -180,13 +180,14 @@ impl AutoMoveMazeState {
     }
 }
 
-fn randomAction(state: &AutoMoveMazeState, rng: &mut StdRng) -> AutoMoveMazeState {
+fn randomAction(state: &AutoMoveMazeState, _number: usize, rng: &mut StdRng) -> AutoMoveMazeState {
     let mut now_state = state.clone();
     for character_id in 0..CHARACTER_N {
         let y = rng.gen_range(0, H) as isize;
         let x = rng.gen_range(0, W) as isize;
         now_state.setCharacter(character_id, y, x);
     }
+
     now_state
 }
 
@@ -210,9 +211,9 @@ fn hillClimb(state: &AutoMoveMazeState, number: usize, rng: &mut StdRng) -> Auto
 fn simulatedAnnealing(
     state: &AutoMoveMazeState,
     number: usize,
+    rng: &mut StdRng,
     start_temp: f64,
     end_temp: f64,
-    rng: &mut StdRng,
 ) -> AutoMoveMazeState {
     let mut now_state = state.clone();
     now_state.init(rng);
@@ -241,7 +242,9 @@ fn simulatedAnnealing(
     best_state
 }
 
-fn playGame(ai: &mut (&str, impl FnMut(&AutoMoveMazeState) -> AutoMoveMazeState)) {
+type Handler = Box<dyn FnMut(&AutoMoveMazeState, usize, &mut StdRng) -> AutoMoveMazeState>;
+
+fn playGame(ai: &mut (&str, Handler), simulate_number: usize, rng_action: &mut StdRng) {
     #[allow(unused_mut, unused_assignments)]
     let mut seed = rand::thread_rng().gen();
     #[cfg(feature = "seed")]
@@ -252,23 +255,25 @@ fn playGame(ai: &mut (&str, impl FnMut(&AutoMoveMazeState) -> AutoMoveMazeState)
     let mut rng_constructor: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed);
 
     let mut state = AutoMoveMazeState::new(&mut rng_constructor);
-    state = ai.1(&state);
+    state = ai.1(&state, simulate_number, rng_action);
     let score = state.getScore(false);
     println!("Score of {}: {}", ai.0, score);
 }
 
 fn testAiScore(
-    ai: &mut (&str, impl FnMut(&AutoMoveMazeState) -> AutoMoveMazeState),
+    ai: &mut (&str, Handler),
     game_number: usize,
-    seed: usize,
+    constructor_seed: usize,
+    simulate_number: usize,
+    rng_action: &mut StdRng,
 ) {
-    println!("constructor seed: {}", seed);
-    let mut rng_constructor: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(seed as u64);
+    println!("constructor seed: {}", constructor_seed);
+    let mut rng_constructor: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(constructor_seed as u64);
     let mut score_mean = 0.0;
 
     for _ in 0..game_number {
         let mut state = AutoMoveMazeState::new(&mut rng_constructor);
-        state = ai.1(&state);
+        state = ai.1(&state, simulate_number, rng_action);
         score_mean += state.getScore(false) as f64;
     }
     score_mean /= game_number as f64;
@@ -277,23 +282,23 @@ fn testAiScore(
 
 fn single_play(simulate_number: usize, rng_action: &mut StdRng) {
     let start = Instant::now();
-    // let mut ai = (
-    //     "randomAction",
-    //     |state: &AutoMoveMazeState| -> AutoMoveMazeState { randomAction(state, rng_action) },
-    // );
-    // let mut ai = (
-    //     "hillClimb",
-    //     |state: &AutoMoveMazeState| -> AutoMoveMazeState {
-    //         hillClimb(state, simulate_number, rng_action)
-    //     }
-    // );
-    let mut ai = (
-        "simulatedAnnealing",
-        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
-            simulatedAnnealing(state, simulate_number, 500.0, 10.0, rng_action)
-        },
-    );
-    playGame(&mut ai);
+
+    let name = "randomAction";
+    let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+        randomAction(state, simulate_number, rng)
+    };
+
+    // let name = "hillClimb";
+    // let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+    //     hillClimb(state, simulate_number, rng)
+    // };
+
+    // let name = "simulatedAnnealing";
+    // let f = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+    //     simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
+    // };
+
+    playGame(&mut (name, Box::new(f)), simulate_number, rng_action);
     println!(
         "Elapsed time: {}sec",
         start.elapsed().as_millis() as f64 / 1000.0
@@ -302,38 +307,47 @@ fn single_play(simulate_number: usize, rng_action: &mut StdRng) {
 
 fn repeat_play(simulate_number: usize, rng_action: &mut StdRng) {
     #[allow(unused_mut, unused_assignments)]
-    let mut seed = rand::thread_rng().gen();
+    let mut constructor_seed = rand::thread_rng().gen();
     #[cfg(feature = "seed")]
     {
-        seed = 11216848234635351618;
+        constructor_seed = 11216848234635351618;
     }
 
     let game_number = 1000;
-    let start = Instant::now();
-    let mut ai = (
-        "hillClimb",
-        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
-            hillClimb(state, simulate_number, rng_action)
-        },
-    );
-    testAiScore(&mut ai, game_number, seed);
-    println!(
-        "Elapsed time: {}sec",
-        start.elapsed().as_millis() as f64 / 1000.0
-    );
 
-    let start = Instant::now();
-    let mut ai = (
-        "simulatedAnnealing",
-        |state: &AutoMoveMazeState| -> AutoMoveMazeState {
-            simulatedAnnealing(state, simulate_number, 500.0, 10.0, rng_action)
-        },
-    );
-    testAiScore(&mut ai, game_number, seed);
-    println!(
-        "Elapsed time: {}sec",
-        start.elapsed().as_millis() as f64 / 1000.0
-    );
+    let f_randomAction = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+        randomAction(state, simulate_number, rng)
+    };
+    let f_hillClimb = |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+        hillClimb(state, simulate_number, rng)
+    };
+    let f_simulatedAnnealing =
+        |state: &AutoMoveMazeState, simulate_number: usize, rng: &mut StdRng| -> AutoMoveMazeState {
+            simulatedAnnealing(state, simulate_number, rng, 500.0, 10.0)
+        };
+
+    let mut ais: Vec<(&str, Handler)> = vec![
+        ("randomAction", Box::new(f_randomAction)),
+        ("hillClimb", Box::new(f_hillClimb)),
+        ("simulatedAnnealing", Box::new(f_simulatedAnnealing)),
+    ];
+
+    for ai in ais.iter_mut() {
+        let start = Instant::now();
+
+        testAiScore(
+            ai,
+            game_number,
+            constructor_seed,
+            simulate_number,
+            rng_action,
+        );
+
+        println!(
+            "Elapsed time: {}sec",
+            start.elapsed().as_millis() as f64 / 1000.0
+        );
+    }
 }
 
 fn main() {
