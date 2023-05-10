@@ -154,7 +154,7 @@ impl std::cmp::PartialEq for MazeState {
     }
 }
 
-impl PartialOrd for MazeState {
+impl std::cmp::PartialOrd for MazeState {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self.evaluated_score_ == other.evaluated_score_ {
             Some(std::cmp::Ordering::Equal)
@@ -168,7 +168,7 @@ impl PartialOrd for MazeState {
     }
 }
 
-impl Ord for MazeState {
+impl std::cmp::Ord for MazeState {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.evaluated_score_ == other.evaluated_score_ {
             std::cmp::Ordering::Equal
