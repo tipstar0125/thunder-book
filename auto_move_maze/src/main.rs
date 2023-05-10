@@ -13,8 +13,8 @@ use std::collections::BinaryHeap;
 use std::time::Instant;
 
 type ScoreType = isize;
-const H: usize = 5;
-const W: usize = 5;
+const H: usize = 10;
+const W: usize = 10;
 const END_TURN: usize = 5;
 const CHARACTER_N: usize = 3;
 const INF: ScoreType = 1e9 as isize;
@@ -174,6 +174,43 @@ impl AutoMoveMazeState {
         for character in self.characters_.iter_mut() {
             character.y_ = rnd_action::gen_range(0, H) as isize;
             character.x_ = rnd_action::gen_range(0, W) as isize;
+        }
+    }
+    fn init2(&mut self) {
+        // place as far apart as possible
+        // if size of board is small or there is no gradation of point, maybe not effective
+        let mut pos_list: Vec<Coord> = vec![];
+        let mut between_dist = END_TURN as isize;
+
+        for _ in 0..CHARACTER_N {
+            let mut ok = false;
+            let mut pos0 = Coord::new();
+            let mut ng_cnt = 0;
+
+            while !ok {
+                ok = true;
+                pos0.y_ = rnd_action::gen_range(0, H) as isize;
+                pos0.x_ = rnd_action::gen_range(0, W) as isize;
+
+                for &p in &pos_list {
+                    let d = (p.y_ - pos0.y_).abs() + (p.x_ - pos0.x_).abs();
+
+                    if d < between_dist {
+                        ok = false;
+                        ng_cnt += 1;
+                    }
+                    if ng_cnt > 1000 {
+                        between_dist -= 1;
+                        ng_cnt = 0;
+                    }
+                }
+            }
+            pos_list.push(pos0);
+        }
+
+        for (i, character) in self.characters_.iter_mut().enumerate() {
+            character.y_ = pos_list[i].y_;
+            character.x_ = pos_list[i].x_;
         }
     }
     fn transition(&mut self) {
