@@ -13,8 +13,8 @@ use std::collections::BinaryHeap;
 use std::time::Instant;
 
 type ScoreType = isize;
-const H: usize = 10;
-const W: usize = 10;
+const H: usize = 5;
+const W: usize = 5;
 const END_TURN: usize = 5;
 const CHARACTER_N: usize = 3;
 const INF: ScoreType = 1e9 as isize;
@@ -28,15 +28,15 @@ struct TimeKeeper {
 }
 
 impl TimeKeeper {
-    fn new(ms: usize) -> Self {
+    fn new(time_threshold: f64) -> Self {
         TimeKeeper {
-            start_time: Instant::now(),
-            time_threshold: (ms * 1e3 as usize) as f64,
+            start_time: std::time::Instant::now(),
+            time_threshold,
         }
     }
     #[inline]
     fn isTimeOver(&self) -> bool {
-        let elapsed_time = self.start_time.elapsed().as_micros() as f64;
+        let elapsed_time = self.start_time.elapsed().as_nanos() as f64 * 1e-9;
         #[cfg(feature = "local")]
         {
             elapsed_time * 0.85 >= self.time_threshold
@@ -57,7 +57,11 @@ mod rnd_constructor {
     pub fn init(seed: usize) {
         unsafe {
             if seed == 0 {
-                S = rand::thread_rng().gen();
+                let t = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as usize;
+                S = t
             } else {
                 S = seed;
             }
@@ -97,7 +101,11 @@ mod rnd_action {
     pub fn init(seed: usize) {
         unsafe {
             if seed == 0 {
-                S = rand::thread_rng().gen();
+                let t = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as usize;
+                S = t
             } else {
                 S = seed;
             }

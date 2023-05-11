@@ -21,20 +21,20 @@ const dy: [isize; 4] = [0, 0, 1, -1];
 
 #[derive(Debug, Clone)]
 struct TimeKeeper {
-    start_time: Instant,
-    time_threshold: f64, // us
+    start_time: std::time::Instant,
+    time_threshold: f64,
 }
 
 impl TimeKeeper {
-    fn new(ms: usize) -> Self {
+    fn new(time_threshold: f64) -> Self {
         TimeKeeper {
-            start_time: Instant::now(),
-            time_threshold: (ms * 1e3 as usize) as f64,
+            start_time: std::time::Instant::now(),
+            time_threshold,
         }
     }
     #[inline]
     fn isTimeOver(&self) -> bool {
-        let elapsed_time = self.start_time.elapsed().as_micros() as f64;
+        let elapsed_time = self.start_time.elapsed().as_nanos() as f64 * 1e-9;
         #[cfg(feature = "local")]
         {
             elapsed_time * 0.85 >= self.time_threshold
@@ -70,8 +70,7 @@ struct MazeState {
 impl MazeState {
     fn new() -> Self {
         #[allow(unused_assignments)]
-        let mut rng: rand::rngs::StdRng =
-            rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
+        let mut rng: rand::rngs::StdRng = rand::SeedableRng::seed_from_u64(rand::thread_rng().gen());
         #[cfg(feature = "seed")]
         {
             let seed = 12;
@@ -106,8 +105,7 @@ impl MazeState {
     fn advance(&mut self, action: usize) {
         self.character_.x_ += dx[action];
         self.character_.y_ += dy[action];
-        let point = &mut self.points_[self.character_.y_ as usize][self.character_.x_ as usize]
-            as *mut usize;
+        let point = &mut self.points_[self.character_.y_ as usize][self.character_.x_ as usize] as *mut usize;
         unsafe {
             if *point > 0 {
                 self.game_score_ += *point;
@@ -235,11 +233,7 @@ fn beamSearchAction(state: &MazeState, beam_width: usize, beam_depth: usize) -> 
     best_state.first_action_ as usize
 }
 
-fn beamSearchActionWithTimeThreshold(
-    state: &MazeState,
-    beam_width: usize,
-    time_threshold: usize,
-) -> usize {
+fn beamSearchActionWithTimeThreshold(state: &MazeState, beam_width: usize, time_threshold: f64) -> usize {
     let mut now_beam = BinaryHeap::new();
     let mut best_state = &MazeState::new(); // initialize
     now_beam.push(state.clone());
@@ -273,12 +267,7 @@ fn beamSearchActionWithTimeThreshold(
     best_state.first_action_ as usize
 }
 
-fn chokudaiSearchAction(
-    state: &MazeState,
-    beam_width: usize,
-    beam_depth: usize,
-    beam_number: usize,
-) -> isize {
+fn chokudaiSearchAction(state: &MazeState, beam_width: usize, beam_depth: usize, beam_number: usize) -> isize {
     let mut beam = vec![BinaryHeap::new(); beam_depth + 1];
     beam[0].push(state.clone());
 
@@ -320,7 +309,7 @@ fn chokudaiSearchActionWithTimeThreshold(
     state: &MazeState,
     beam_width: usize,
     beam_depth: usize,
-    time_threshold: usize,
+    time_threshold: f64,
 ) -> isize {
     let mut beam = vec![BinaryHeap::new(); beam_depth + 1];
     beam[0].push(state.clone());
@@ -365,18 +354,20 @@ fn chokudaiSearchActionWithTimeThreshold(
 
 fn playGame() -> usize {
     let mut state = MazeState::new();
+    // [ms]
+    let time_threshold = 10.0;
     // state.toString();
     while !state.isDone() {
         // state.advance(randomAction(&state));
         // state.advance(greedyAction(&state));
         // (state, beam_width, beam_depth)
         // state.advance(beamSearchAction(&state, 5, 3));
-        // (state, beam_width, time_threshold[ms])
-        // state.advance(beamSearchActionWithTimeThreshold(&state, 5, 10));
+        // (state, beam_width, time_threshold[s])
+        // state.advance(beamSearchActionWithTimeThreshold(&state, 5, time_threshold * 1e-3));
         // (state, beam_width, beam_depth, beam_number)
         // state.advance(chokudaiSearchAction(&state, 1, 3, 1) as usize);
-        // (state, beam_width, beam_depth, time_threshold[ms])
-        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, 10) as usize);
+        // (state, beam_width,beam_depth, time_threshold[s])
+        state.advance(chokudaiSearchActionWithTimeThreshold(&state, 1, END_TURN, time_threshold * 1e-3) as usize);
         // state.toString();
     }
     state.game_score_
